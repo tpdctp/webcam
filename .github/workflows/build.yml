@@ -13,15 +13,18 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v2
 
-    - name: Set up MSVC
-      shell: pwsh
+    - name: Set up Visual Studio
       run: |
-        # Set up the Visual Studio environment
-        $env:VSVARS = "C:\Program Files (x86)\Microsoft Visual Studio\2019\BuildTools\VC\Auxiliary\Build\vcvars64.bat"
-        & $env:VSVARS
+        # Use vswhere to locate the Visual Studio installation
+        $vsInstallPath = &"C:\Program Files (x86)\Microsoft Visual Studio\Installer\vswhere.exe" -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath
+        $vsVarsPath = "$vsInstallPath\VC\Auxiliary\Build\vcvars64.bat"
+        echo "Found Visual Studio at $vsInstallPath"
+        cmd /c ""$vsVarsPath"" && set"
+      shell: pwsh
 
     - name: Build with MSVC
-      run: nmake /f makefile.msvc
+      run: |
+        cmd /c ""$env:vsInstallPath\VC\Auxiliary\Build\vcvars64.bat"" && nmake -f makefile.msvc
 
     - name: Archive build artifacts
       uses: actions/upload-artifact@v2
