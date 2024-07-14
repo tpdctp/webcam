@@ -13,24 +13,36 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v2
 
-    - name: Set up Visual Studio
-      run: |
-        # Use vswhere to locate the Visual Studio installation
-        $vsInstallPath = &"C:\Program Files (x86)\Microsoft Visual Studio\Installer\vswhere.exe" -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath
-        $vsVarsPath = "$vsInstallPath\VC\Auxiliary\Build\vcvars64.bat"
-        echo "Found Visual Studio at $vsInstallPath"
-        cmd /c ""$vsVarsPath"" && set"
+    - name: Set up Visual Studio environment
       shell: pwsh
+      run: |
+        # Find Visual Studio installation path
+        $vswherePath = "C:\Program Files (x86)\Microsoft Visual Studio\Installer\vswhere.exe"
+        $vsInstallPath = & $vswherePath -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath
+
+        if (-not $vsInstallPath) {
+          Write-Error "Visual Studio not found."
+          exit 1
+        }
+
+        # Set up environment variables
+        $vsVarsPath = "$vsInstallPath\VC\Auxiliary\Build\vcvars64.bat"
+        Write-Host "Visual Studio found at: $vsInstallPath"
+
+        # Invoke vcvars64.bat and propagate environment variables to subsequent commands
+        cmd /c """$vsVarsPath"" && set"
 
     - name: Build with MSVC
+      shell: cmd
       run: |
-        cmd /c ""$env:vsInstallPath\VC\Auxiliary\Build\vcvars64.bat"" && nmake -f makefile.msvc
+        # Run nmake to build the project
+        call nmake -f makefile.msvc
 
     - name: Archive build artifacts
       uses: actions/upload-artifact@v2
       with:
         name: build-artifacts
-        path: path\to\your\build\output
+        path: webcam
 
   release:
     needs: build
@@ -59,6 +71,6 @@ jobs:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
         upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_path: webcam.exe
+        asset_path: webcam
         asset_name: webcam.exe
         asset_content_type: application/octet-stream
